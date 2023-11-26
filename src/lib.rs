@@ -1,9 +1,9 @@
 #![allow(dead_code)]
-use std::ptr::null;
 
+#[derive(Debug, PartialEq, Eq)]
 struct Empty;
 
-// const E: *const Empty = &Empty as *const Empty;
+const E: *const Empty = &Empty as *const Empty;
 struct Node<V, N = Empty> {
     value: *const V,
     next: N,
@@ -16,74 +16,86 @@ impl Node<Empty, Empty> {
 }
 
 impl<V> Node<V> {
-    fn append<V2>(self, value: *const V2) -> Node<V, Node<V2>> {
-        Node {
-            value: self.value,
-            next: Node::new(value),
-        }
-    }
+    // fn append<V2>(self, value: *const V2) -> Node<V, Node<V2>> {
+    //     Node {
+    //         value: self.value,
+    //         next: Node { value, next: Empty },
+    //     }
+    // }
 }
 
 impl<V, N> Node<V, N> {
-    fn prepend<V2>(self, value: *const V2) -> Node<V2, Node<V, N>> {
+    fn prepend<V2>(self, value: *const V2) -> Node<V2, Self> {
         Node { value, next: self }
-    }
-
-    fn as_ptr(&self) -> *const Self {
-        self as *const Self
     }
 
     fn value(&self) -> V
     where
         V: Clone,
     {
+        // We ensure value is clone after reconsturcting the object
         unsafe { self.value.read() }.clone()
     }
 }
 
-// impl Drop
+trait Append {
+    type NewType<T>;
 
-struct TypedLinkList<S, E> {
-    start: S, // Single linked list: left-right
-    end: E,   // Single linked list: right-left
-
-    // Pointer to right-most element in linked list
-    _start_end: *const (),
+    fn append<T>(self, value: *const T) -> Self::NewType<T>;
 }
 
-impl TypedLinkList<Empty, Empty> {
-    pub fn new() -> Self {
+impl<V> Append for Node<V> {
+    type NewType<T> = Node<V, Node<T>>;
+
+    fn append<T>(self, value: *const T) -> Self::NewType<T> {
+        Node {
+            value: self.value,
+            next: Node { value, next: Empty },
+        }
+    }
+}
+
+impl<V, N: Append> Append for Node<V, N> {
+    type NewType<T> = Node<V, N::NewType<T>>;
+
+    fn append<T>(self, value: *const T) -> Self::NewType<T> {
+        Node {
+            value: self.value,
+            next: self.next.append(value),
+        }
+    }
+}
+
+pub struct DynamicList<F, B> {
+    forward: F,
+    backward: B,
+}
+
+impl DynamicList<Empty, Empty> {
+    fn new() -> Self {
         Self {
-            start: Empty,
-            end: Empty,
-            _start_end: null(),
+            forward: Empty,
+            backward: Empty,
         }
     }
 
-    // Appends right-most position
-    pub fn add<V>(self, value: V) -> TypedLinkList<Node<V>, Node<V>> {
+    fn add<V>(self, value: V) -> DynamicList<Node<V>, Node<V>> {
         let value = Box::into_raw(Box::new(value));
 
-        TypedLinkList {
-            start: Node::new(value),
-            end: Node::new(value),
-            _start_end: null(),
+        DynamicList {
+            forward: Node::new(value),
+            backward: Node::new(value),
         }
     }
 }
 
-// Case 1 element
-impl<V> TypedLinkList<Node<V>, Node<V>> {
-    pub fn add<V2>(self, value: V2) -> TypedLinkList<Node<V, Node<V2>>, Node<V2, Node<V>>> {
+impl<F: Append, BV, BN> DynamicList<F, Node<BV, BN>> {
+    fn add<V>(self, value: V) -> DynamicList<F::NewType<V>, Node<V, Node<BV, BN>>> {
         let value = Box::into_raw(Box::new(value));
 
-        let start = self.start.append(value);
-        let start_end = start.next.as_ptr().cast();
-
-        TypedLinkList {
-            start,
-            end: self.end.prepend(value),
-            _start_end: start_end,
+        DynamicList {
+            forward: self.forward.append(value),
+            backward: self.backward.prepend(value),
         }
     }
 }
@@ -93,10 +105,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn works_2() {
-        let a = TypedLinkList::new().add(10).add("hi");
+    fn works_1() {
+        let list = DynamicList::new().add(1);
 
-        assert_eq!(a.start.value(), 10);
-        assert_eq!(a.start.next.value(), "hi");
+        assert_eq!(list.forward.value(), 1);
+        assert_eq!(list.backward.value(), 1);
+
+        assert_eq!(list.forward.next, Empty);
+        assert_eq!(list.backward.next, Empty);
     }
+
+    #[test]
+    fn works_n() {
+        let list = DynamicList::new().add(1).add("two").add(3.0);
+
+        assert_eq!(list.forward.next.next.value(), 3.0);
+        assert_eq!(list.backward.next.next.value(), 1);
+    }
+
+    trait Truth {
+        const TRUE: bool = true;
+    }
+    impl<T> Truth for T {}
 }

@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "typed-list"
+name = "dynamic-list"
 version = "0.1.0"
