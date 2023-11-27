@@ -149,7 +149,17 @@ impl<F: Append, BV, BN> DynamicList<F, Node<BV, BN>> {
 }
 
 pub mod prelude {
-    pub use crate::{DynamicList, Node, Size};
+    pub use crate::{list, DynamicList, Node, Size};
+}
+
+#[macro_export]
+macro_rules! list {
+    () => {
+        DynamicList::new()
+    };
+    ($($x:expr),+ $(,)?) => {
+        DynamicList::new()$(.push($x))+
+    };
 }
 
 // TODO: Handle the dropping of a dynamic list
@@ -179,5 +189,14 @@ mod tests {
         assert_eq!(list.backward.next.next.value(), &1);
 
         assert_eq!(list.len(), 3);
+    }
+
+    #[test]
+    fn test_macro() {
+        let list_1 = list![1, "two", 3.0, true];
+        let list_2 = list!().push(1).push("two").push(3.0).push(true);
+
+        assert_eq!(list_1.len(), 4);
+        assert_eq!(list_2.len(), 4);
     }
 }

@@ -17,7 +17,7 @@ impl<V: ToString + Clone, N: Concat> Concat for Node<V, N> {
 
 #[test]
 fn example_one() {
-    let list = DynamicList::new().push(1u8).push("_hello").push(-3i32);
+    let list = list![1u8, "_hello", -3i32];
     assert_eq!(list.forward().concat(), "1_hello-3");
 }
 
@@ -48,6 +48,6 @@ impl<V: Even + Clone, N: NumberEven> NumberEven for Node<V, N> {
 
 #[test]
 fn example_two() {
-    let list = DynamicList::new().push(1u8).push(2u16).push(3usize);
+    let list = list![1u8, 2u16, 3usize];
     assert_eq!(list.forward().evens(), 1);
 }
