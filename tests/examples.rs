@@ -19,15 +19,16 @@ impl<V: ToString + Clone, N: Concat> Concat for Node<V, N> {
 fn example_one() {
     let list = list![1u8, "_hello", -3i32];
     assert_eq!(list.forward().concat(), "1_hello-3");
+    assert_eq!(list.backward().concat(), "-3_hello1");
 }
 
 // Polymorphic trait:
 trait Even {
     fn even(&self) -> usize;
 }
-impl<T: Clone + Into<usize>> Even for T {
+impl<T: Clone + TryInto<usize>> Even for T {
     fn even(&self) -> usize {
-        (self.clone().into() + 1) % 2
+        (self.clone().try_into().unwrap_or(1) + 1) % 2
     }
 }
 
@@ -40,7 +41,7 @@ impl<V: Even> NumberEven for Node<V> {
         self.value().even()
     }
 }
-impl<V: Even + Clone, N: NumberEven> NumberEven for Node<V, N> {
+impl<V: Even, N: NumberEven> NumberEven for Node<V, N> {
     fn evens(&self) -> usize {
         self.value().even() + self.next().evens()
     }
@@ -48,6 +49,6 @@ impl<V: Even + Clone, N: NumberEven> NumberEven for Node<V, N> {
 
 #[test]
 fn example_two() {
-    let list = list![1u8, 2u16, 3usize];
-    assert_eq!(list.forward().evens(), 1);
+    let list = list![false, 1, 2u8, -3, 4isize];
+    assert_eq!(list.forward().evens(), 3);
 }

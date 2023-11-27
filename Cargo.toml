@@ -1,6 +1,15 @@
 [package]
 name = "dynamic-list"
 version = "0.1.0"
+authors = ["Ferran Sanchez Llado"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/ferranSanchezLlado/dynamic-list.git"
+homepage = "https://github.com/ferranSanchezLlado/dynamic-list.git"
+documentation = "https://docs.rs/dynamic-list"
+description = "Implementation of a dynamic bidirectional linked list capable of storing any type in Rust without the use of dynamic dispatch"
+keywords = ["dynamic-list", "multiple-types", "static-dispatch", "static-type-iteratation", "bidirectional-list"]
+categories = ["data-structures", "memory-management"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
