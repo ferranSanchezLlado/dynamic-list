@@ -1,6 +1,6 @@
 use dynamic_list::prelude::*;
 
-// Iterator:
+// Iterator
 trait Concat {
     fn concat(&self) -> String;
 }
@@ -22,7 +22,7 @@ fn example_one() {
     assert_eq!(list.backward().concat(), "-3_hello1");
 }
 
-// Polymorphic trait:
+// Polymorphic trait
 trait Even {
     fn even(&self) -> usize;
 }
@@ -32,7 +32,7 @@ impl<T: Clone + TryInto<usize>> Even for T {
     }
 }
 
-// Iterator:
+// Iterator
 trait NumberEven {
     fn evens(&self) -> usize;
 }

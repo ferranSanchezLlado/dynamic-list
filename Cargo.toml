@@ -8,7 +8,7 @@ repository = "https://github.com/ferranSanchezLlado/dynamic-list.git"
 homepage = "https://github.com/ferranSanchezLlado/dynamic-list.git"
 documentation = "https://docs.rs/dynamic-list"
 description = "Implementation of a dynamic bidirectional linked list capable of storing any type in Rust without the use of dynamic dispatch"
-keywords = ["dynamic-list", "multiple-types", "static-dispatch", "static-type-iteratation", "bidirectional-list"]
+keywords = ["dynamic-list", "multiple-types", "static-dispatch", "not-dynamic-dispatch", "bidirectional-list"]
 categories = ["data-structures", "memory-management"]
 edition = "2021"
 

@@ -27,7 +27,7 @@ Example 1: We want to concatenate a list of items into a single string:
 ```rust
 use dynamic_list::prelude::*;
 
-// Iterator trait:
+// Iterator trait
 trait Concat {
     fn concat(&self) -> String;
 }
@@ -52,7 +52,7 @@ Example 2: We want to count how many even numbers are on the list:
 ```rust
 use dynamic_list::prelude::*;
 
-// Polymorphic trait:
+// Polymorphic trait
 trait Even {
     fn even(&self) -> usize;
 }
@@ -62,7 +62,7 @@ impl<T: Clone + TryInto<usize>> Even for T {
     }
 }
 
-// Iterator trait:
+// Iterator trait
 trait NumberEven {
     fn evens(&self) -> usize;
 }
