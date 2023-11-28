@@ -26,37 +26,43 @@ unsafe impl<V, N: DropValue> DropValue for Node<V, N> {
 }
 
 impl Node<Empty, Empty> {
-    fn new<V>(value: *const V) -> Node<V> {
+    #[inline]
+    const fn new<V>(value: *const V) -> Node<V> {
         Node { value, next: Empty }
     }
 }
 
 impl<V, N> Node<V, N> {
-    fn prepend<V2>(self, value: *const V2) -> Node<V2, Self> {
+    #[inline]
+    const fn prepend<V2>(self, value: *const V2) -> Node<V2, Self> {
         Node { value, next: self }
     }
-
-    pub fn value(&self) -> &V {
+    #[inline]
+    pub const fn value(&self) -> &V {
         // Safety: Value read should never be null, as the value is being stored in the heap.
         // See DynamicList add method.
-        unsafe { self.value.as_ref().unwrap() }
+        unsafe { &*self.value }
     }
 
+    #[inline]
     pub fn value_mut(&mut self) -> &mut V {
         // Safety: Value read should never be null, as the value is being stored in the heap.
         // See DynamicList add method.
-        unsafe { self.value.cast_mut().as_mut().unwrap() }
+        unsafe { self.value.cast_mut().as_mut().unwrap_unchecked() }
     }
 
-    pub fn next(&self) -> &N {
+    #[inline]
+    pub const fn next(&self) -> &N {
         &self.next
     }
 
+    #[inline]
     pub fn next_mut(&mut self) -> &mut N {
         &mut self.next
     }
 }
 
+// TODO: Test splitting append method from type system
 pub trait Append {
     type NewType<T>: DropValue;
 
@@ -66,6 +72,7 @@ pub trait Append {
 impl<V> Append for Node<V> {
     type NewType<T> = Node<V, Node<T>>;
 
+    #[inline]
     fn append<T>(self, value: *const T) -> Self::NewType<T> {
         Node {
             value: self.value,
@@ -77,6 +84,7 @@ impl<V> Append for Node<V> {
 impl<V, N: Append + DropValue> Append for Node<V, N> {
     type NewType<T> = Node<V, N::NewType<T>>;
 
+    #[inline]
     fn append<T>(self, value: *const T) -> Self::NewType<T> {
         Node {
             value: self.value,
@@ -107,6 +115,7 @@ pub struct DynamicList<F, B: DropValue> {
 }
 
 impl DynamicList<Empty, Empty> {
+    #[inline]
     pub const fn new() -> Self {
         Self {
             forward: Empty,
@@ -114,6 +123,7 @@ impl DynamicList<Empty, Empty> {
         }
     }
 
+    #[inline]
     pub fn push<V>(self, value: V) -> DynamicList<Node<V>, Node<V>> {
         let value = Box::into_raw(Box::new(value));
 
@@ -131,32 +141,39 @@ impl Default for DynamicList<Empty, Empty> {
 }
 
 impl<F, N: Size + DropValue> DynamicList<F, N> {
-    pub fn forward(&self) -> &F {
+    #[inline]
+    pub const fn forward(&self) -> &F {
         &self.forward
     }
 
+    #[inline]
     pub fn forward_mut(&mut self) -> &mut F {
         &mut self.forward
     }
 
-    pub fn backward(&self) -> &N {
+    #[inline]
+    pub const fn backward(&self) -> &N {
         &self.backward
     }
 
+    #[inline]
     pub fn backward_mut(&mut self) -> &mut N {
         &mut self.backward
     }
 
+    #[inline]
     pub const fn len(&self) -> usize {
         N::SIZE
     }
 
+    #[inline]
     pub const fn is_empty(&self) -> bool {
         N::SIZE == 0
     }
 }
 
 impl<F: Append, BV, BN: DropValue> DynamicList<F, Node<BV, BN>> {
+    #[inline]
     pub fn push<V>(self, value: V) -> DynamicList<F::NewType<V>, Node<V, Node<BV, BN>>>
     where
         <F as Append>::NewType<V>: DropValue,
