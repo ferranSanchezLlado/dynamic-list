@@ -1,9 +1,28 @@
+use std::mem::forget;
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct Empty;
 
 pub struct Node<V, N = Empty> {
     value: *const V,
     next: N,
+}
+/// # Safety
+/// You should not need to ever use it directly.
+///
+/// If you call this method manually this could lead to a double free error.
+pub unsafe trait DropValue {
+    /// # Safety
+    /// This method recursively drops all the values from the heap. Therfore multiple calls to this
+    /// method could lead to errors.
+    unsafe fn drop_values(&mut self) {}
+}
+unsafe impl DropValue for Empty {}
+unsafe impl<V, N: DropValue> DropValue for Node<V, N> {
+    unsafe fn drop_values(&mut self) {
+        drop(Box::from_raw(self.value.cast_mut()));
+        self.next.drop_values()
+    }
 }
 
 impl Node<Empty, Empty> {
@@ -18,14 +37,14 @@ impl<V, N> Node<V, N> {
     }
 
     pub fn value(&self) -> &V {
-        // SAFETY: Value read should never be null, as the the pointer is allocated in value is from
-        // the heap. See DynamicList add method.
+        // Safety: Value read should never be null, as the value is being stored in the heap.
+        // See DynamicList add method.
         unsafe { self.value.as_ref().unwrap() }
     }
 
     pub fn value_mut(&mut self) -> &mut V {
-        // SAFETY: Value read should never be null, as the the pointer is allocated in value is from
-        // the heap. See DynamicList add method.
+        // Safety: Value read should never be null, as the value is being stored in the heap.
+        // See DynamicList add method.
         unsafe { self.value.cast_mut().as_mut().unwrap() }
     }
 
@@ -39,7 +58,7 @@ impl<V, N> Node<V, N> {
 }
 
 pub trait Append {
-    type NewType<T>;
+    type NewType<T>: DropValue;
 
     fn append<T>(self, value: *const T) -> Self::NewType<T>;
 }
@@ -55,7 +74,7 @@ impl<V> Append for Node<V> {
     }
 }
 
-impl<V, N: Append> Append for Node<V, N> {
+impl<V, N: Append + DropValue> Append for Node<V, N> {
     type NewType<T> = Node<V, N::NewType<T>>;
 
     fn append<T>(self, value: *const T) -> Self::NewType<T> {
@@ -82,7 +101,7 @@ impl<V, N: Size> Size for Node<V, N> {
     const SIZE: usize = 1 + N::SIZE;
 }
 
-pub struct DynamicList<F, B> {
+pub struct DynamicList<F, B: DropValue> {
     forward: F,
     backward: B,
 }
@@ -111,7 +130,7 @@ impl Default for DynamicList<Empty, Empty> {
     }
 }
 
-impl<F: Size, N> DynamicList<F, N> {
+impl<F, N: Size + DropValue> DynamicList<F, N> {
     pub fn forward(&self) -> &F {
         &self.forward
     }
@@ -129,21 +148,40 @@ impl<F: Size, N> DynamicList<F, N> {
     }
 
     pub const fn len(&self) -> usize {
-        F::SIZE
+        N::SIZE
     }
 
     pub const fn is_empty(&self) -> bool {
-        F::SIZE == 0
+        N::SIZE == 0
     }
 }
 
-impl<F: Append, BV, BN> DynamicList<F, Node<BV, BN>> {
-    pub fn push<V>(self, value: V) -> DynamicList<F::NewType<V>, Node<V, Node<BV, BN>>> {
+impl<F: Append, BV, BN: DropValue> DynamicList<F, Node<BV, BN>> {
+    pub fn push<V>(self, value: V) -> DynamicList<F::NewType<V>, Node<V, Node<BV, BN>>>
+    where
+        <F as Append>::NewType<V>: DropValue,
+    {
         let value = Box::into_raw(Box::new(value));
 
+        // Safety: We are deconstructing the struct while avoiding calling the drop method. As this
+        // method should only be called at the end by the user.
+        let forward = unsafe { (&self.forward as *const F).read() };
+        let backward = unsafe { (&self.backward as *const Node<BV, BN>).read() };
+        forget(self);
+
         DynamicList {
-            forward: self.forward.append(value),
-            backward: self.backward.prepend(value),
+            forward: forward.append(value),
+            backward: backward.prepend(value),
+        }
+    }
+}
+
+impl<F, N: DropValue> Drop for DynamicList<F, N> {
+    fn drop(&mut self) {
+        // Safety: We can should only call the recursive drop method in one of the branches:
+        // Otherwise this could lead to double free calls.
+        unsafe {
+            self.backward.drop_values();
         }
     }
 }
@@ -161,8 +199,6 @@ macro_rules! list {
         DynamicList::new()$(.push($x))+
     };
 }
-
-// TODO: Handle the dropping of a dynamic list
 
 #[cfg(test)]
 mod tests {
@@ -198,5 +234,32 @@ mod tests {
 
         assert_eq!(list_1.len(), 4);
         assert_eq!(list_2.len(), 4);
+    }
+
+    #[test]
+    fn test_drop() {
+        static mut N_DROPS: u8 = 0;
+
+        fn drops() -> u8 {
+            unsafe { N_DROPS }
+        }
+
+        struct Test;
+
+        impl Drop for Test {
+            fn drop(&mut self) {
+                unsafe {
+                    N_DROPS += 1;
+                }
+            }
+        }
+
+        // Test that the struct Test implemented properly drop
+        drop(Test);
+        assert_eq!(drops(), 1);
+
+        let list = list![Test, Test, Test];
+        drop(list);
+        assert_eq!(drops(), 4);
     }
 }
