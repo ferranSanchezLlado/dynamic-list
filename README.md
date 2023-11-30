@@ -1,14 +1,14 @@
 # Dynamic List 
 
-Implementation of a dynamic bidirectional linked list capable of storing any type in Rust. Therefore, through the use of this library, you can avoid the need for dynamic dispatch because the dynamic list keeps track of all the types
+A versatile implementation of a dynamic bidirectional linked list in Rust, capable of storing any type. This fully-typed list eliminates the need for extra costs, such as dynamic dispatching, making it efficient and flexible for a wide range of use cases.
 
-## Installation
+## Installation 🚀
 
 Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-dynamic-list = "0.1.0"
+dynamic-list = "0.2.0"
 ```
 
 Or if you want to use the latest version from the master branch:
@@ -18,7 +18,7 @@ Or if you want to use the latest version from the master branch:
 dynamic-list = { git = "https://github.com/ferranSanchezLlado/dynamic-list.git" }
 ```
 
-## Usage
+## Usage 🛠️
 
 The main way to interact with the `DynamicList` is through the implementation of a trait that allows it to iterate, reduce, or accumulate by recursively calling itself.
 
@@ -93,11 +93,13 @@ let list = list![false, 1, 2u8, -3, 4isize];
 assert_eq!(list.forward().evens(), 3);
 ```
 
-## Limitations
+## Limitations ⚠️
 
-You will not be able to call the trait methods if any of the values in the list don't implement them. However, once trait specalization lands, this would result in the easy implementation of traits for all types with different behaviors. For example, the `Even` trait could make all non-numeric types default to returning 0. Therefore, the list could contain any type.
+While Dynamic List provides a powerful and flexible solution, it's essential to be aware of the following limitations:
 
-Currently, the elements in the list are being allocated in the heap. I couldn't think of any way to avoid this problem for a bidirectional list. However, I could very easily add an alternative allowing for a single direction.
-## License
+- **Trait Implementation Requirement:** To leverage the full functionality of the list, it's necessary for the values in the list to implement the required traits. Attempting to call trait methods on types that don't implement them will result in compilation errors that are hard to understand. However, with the future introduction of trait specialization in Rust, this limitation may be mitigated, allowing for more versatile trait implementations. For example, it would be possible to define a default value all types excluding the ones you are interested.
+- **Heap Allocation:** Currently, elements in the list are allocated on the heap. Although this allows the possibility of avoiding the need to clone values in the list. If heap allocation is a concern, an alternative implementation allowing for single-directional allocation could be considered.
+
+## License 📄
 
 This project is licensed under the [MIT License](MIT-LICENSE) or [Apache License, Version 2.0](APACHE-LICENSE) at your option.
