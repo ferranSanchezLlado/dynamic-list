@@ -1,6 +1,7 @@
+pub use self::traits::{Index, NotEmpty, Size};
 use std::mem::forget;
-use std::ops::Sub;
-use typenum::*;
+
+mod traits;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Empty;
@@ -8,23 +9,6 @@ pub struct Empty;
 pub struct Node<V, N = Empty> {
     value: *const V,
     next: N,
-}
-/// # Safety
-/// You should not need to ever use it directly.
-///
-/// If you call this method manually this could lead to a double free error.
-pub unsafe trait DropValue {
-    /// # Safety
-    /// This method recursively drops all the values from the heap. Therfore multiple calls to this
-    /// method could lead to errors.
-    unsafe fn drop_values(&mut self) {}
-}
-unsafe impl DropValue for Empty {}
-unsafe impl<V, N: DropValue> DropValue for Node<V, N> {
-    unsafe fn drop_values(&mut self) {
-        drop(Box::from_raw(self.value.cast_mut()));
-        self.next.drop_values()
-    }
 }
 
 impl Node<Empty, Empty> {
@@ -64,100 +48,7 @@ impl<V, N> Node<V, N> {
     }
 }
 
-// TODO: Test splitting append method from type system
-pub trait Append {
-    type Output<T>: DropValue;
-
-    fn append<T>(self, value: *const T) -> Self::Output<T>;
-}
-
-impl<V> Append for Node<V> {
-    type Output<T> = Node<V, Node<T>>;
-
-    #[inline]
-    fn append<T>(self, value: *const T) -> Self::Output<T> {
-        Node {
-            value: self.value,
-            next: Node::new(value),
-        }
-    }
-}
-
-impl<V, N: Append + DropValue> Append for Node<V, N> {
-    type Output<T> = Node<V, N::Output<T>>;
-
-    #[inline]
-    fn append<T>(self, value: *const T) -> Self::Output<T> {
-        Node {
-            value: self.value,
-            next: self.next.append(value),
-        }
-    }
-}
-
-pub trait Size {
-    const SIZE: usize = 0;
-
-    fn len(&self) -> usize {
-        Self::SIZE
-    }
-
-    fn is_empty(&self) -> bool {
-        Self::SIZE == 0
-    }
-}
-impl Size for Empty {}
-impl<V, N: Size> Size for Node<V, N> {
-    const SIZE: usize = 1 + N::SIZE;
-}
-
-pub trait NotEmpty {}
-impl<V> NotEmpty for Node<V> {}
-impl<V, N: NotEmpty> NotEmpty for Node<V, N> {}
-
-pub trait Index<I> {
-    type Output<'a>
-    where
-        Self: 'a;
-
-    fn index(&self) -> Self::Output<'_>;
-}
-// Case: Fount element
-impl<V, N> Index<U0> for Node<V, N> {
-    type Output<'a> = &'a V where Self: 'a;
-
-    fn index(&self) -> Self::Output<'_> {
-        self.value()
-    }
-}
-// Case: There still index remaining but we arrived to last element
-impl<V, U: Unsigned, B: Bit> Index<UInt<U, B>> for Node<V>
-where
-    UInt<U, B>: NonZero,
-{
-    type Output<'a> = Empty where Self: 'a;
-
-    fn index(&self) -> Self::Output<'_> {
-        Empty
-    }
-}
-
-// Case: Generic search recursive search for element when not in last node
-impl<V, U, B, N> Index<UInt<U, B>> for Node<V, N>
-where
-    U: Unsigned,
-    B: Bit,
-    N: NotEmpty + Index<Sub1<UInt<U, B>>>,
-    UInt<U, B>: NonZero + Sub<B1>,
-{
-    type Output<'a> = N::Output<'a> where Self: 'a;
-
-    fn index(&self) -> Self::Output<'_> {
-        self.next.index()
-    }
-}
-
-pub struct DynamicList<F, B: DropValue> {
+pub struct DynamicList<F, B: traits::DropValue> {
     forward: F,
     backward: B,
 }
@@ -188,7 +79,8 @@ impl Default for DynamicList<Empty, Empty> {
     }
 }
 
-impl<F, N: Size + DropValue> DynamicList<F, N> {
+// Size and Drop Value are always implemented
+impl<F, N: Size + traits::DropValue> DynamicList<F, N> {
     #[inline]
     pub const fn forward(&self) -> &F {
         &self.forward
@@ -220,11 +112,12 @@ impl<F, N: Size + DropValue> DynamicList<F, N> {
     }
 }
 
-impl<F: Append, BV, BN: DropValue> DynamicList<F, Node<BV, BN>> {
+// Generic push:
+impl<F: traits::Append, BV, BN: traits::DropValue> DynamicList<F, Node<BV, BN>> {
     #[inline]
     pub fn push<V>(self, value: V) -> DynamicList<F::Output<V>, Node<V, Node<BV, BN>>>
     where
-        <F as Append>::Output<V>: DropValue,
+        <F as traits::Append>::Output<V>: traits::DropValue,
     {
         let value = Box::into_raw(Box::new(value));
 
@@ -241,7 +134,7 @@ impl<F: Append, BV, BN: DropValue> DynamicList<F, Node<BV, BN>> {
     }
 }
 
-impl<F, N: DropValue> Drop for DynamicList<F, N> {
+impl<F, N: traits::DropValue> Drop for DynamicList<F, N> {
     fn drop(&mut self) {
         // Safety: We can should only call the recursive drop method in one of the branches:
         // Otherwise this could lead to double free calls.
@@ -249,10 +142,6 @@ impl<F, N: DropValue> Drop for DynamicList<F, N> {
             self.backward.drop_values();
         }
     }
-}
-
-pub mod prelude {
-    pub use crate::{list, DynamicList, Node, Size};
 }
 
 #[macro_export]
@@ -268,6 +157,7 @@ macro_rules! list {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use typenum::*;
 
     #[test]
     fn works_1() {

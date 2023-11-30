@@ -22,10 +22,22 @@ dynamic-list = { git = "https://github.com/ferranSanchezLlado/dynamic-list.git" 
 
 The main way to interact with the `DynamicList` is through the implementation of a trait that allows it to iterate, reduce, or accumulate by recursively calling itself.
 
-Example 1: We want to concatenate a list of items into a single string:
+Example 1: Get a specific element
 
 ```rust
-use dynamic_list::prelude::*;
+use dynamic_list::*;
+use typenum::*;
+
+let list = list![1u8, "hello", true, "world"];
+assert_eq!(Index::<U1>::index(list_1.forward()), &"hello");
+assert_eq!(Index::<U3>::index(list_1.forward()), &"world");
+
+```
+
+Example 2: We want to concatenate a list of items into a single string:
+
+```rust
+use dynamic_list::*;
 
 // Iterator trait
 trait Concat {
@@ -47,10 +59,10 @@ assert_eq!(list.forward().concat(), "1_hello-3");
 assert_eq!(list.backward().concat(), "-3_hello1");
 ```
 
-Example 2: We want to count how many even numbers are on the list:
+Example 3: We want to count how many even numbers are on the list:
 
 ```rust
-use dynamic_list::prelude::*;
+use dynamic_list::*;
 
 // Polymorphic trait
 trait Even {

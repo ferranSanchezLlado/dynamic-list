@@ -1,7 +1,16 @@
-use dynamic_list::prelude::*;
-
 #[test]
 fn example_one() {
+    use dynamic_list::*;
+    use typenum::*;
+
+    let list = list![1u8, "hello", true, "world"];
+    assert_eq!(Index::<U1>::index(list.forward()), &"hello");
+    assert_eq!(Index::<U3>::index(list.forward()), &"world");
+}
+
+#[test]
+fn example_two() {
+    use dynamic_list::*;
     // Iterator
     trait Concat {
         fn concat(&self) -> String;
@@ -23,7 +32,8 @@ fn example_one() {
 }
 
 #[test]
-fn example_two() {
+fn example_three() {
+    use dynamic_list::*;
     // Polymorphic trait
     trait Even {
         fn even(&self) -> usize;
