@@ -1,4 +1,6 @@
 use std::mem::forget;
+use std::ops::Sub;
+use typenum::*;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Empty;
@@ -64,16 +66,16 @@ impl<V, N> Node<V, N> {
 
 // TODO: Test splitting append method from type system
 pub trait Append {
-    type NewType<T>: DropValue;
+    type Output<T>: DropValue;
 
-    fn append<T>(self, value: *const T) -> Self::NewType<T>;
+    fn append<T>(self, value: *const T) -> Self::Output<T>;
 }
 
 impl<V> Append for Node<V> {
-    type NewType<T> = Node<V, Node<T>>;
+    type Output<T> = Node<V, Node<T>>;
 
     #[inline]
-    fn append<T>(self, value: *const T) -> Self::NewType<T> {
+    fn append<T>(self, value: *const T) -> Self::Output<T> {
         Node {
             value: self.value,
             next: Node::new(value),
@@ -82,10 +84,10 @@ impl<V> Append for Node<V> {
 }
 
 impl<V, N: Append + DropValue> Append for Node<V, N> {
-    type NewType<T> = Node<V, N::NewType<T>>;
+    type Output<T> = Node<V, N::Output<T>>;
 
     #[inline]
-    fn append<T>(self, value: *const T) -> Self::NewType<T> {
+    fn append<T>(self, value: *const T) -> Self::Output<T> {
         Node {
             value: self.value,
             next: self.next.append(value),
@@ -107,6 +109,52 @@ pub trait Size {
 impl Size for Empty {}
 impl<V, N: Size> Size for Node<V, N> {
     const SIZE: usize = 1 + N::SIZE;
+}
+
+pub trait NotEmpty {}
+impl<V> NotEmpty for Node<V> {}
+impl<V, N: NotEmpty> NotEmpty for Node<V, N> {}
+
+pub trait Index<I> {
+    type Output<'a>
+    where
+        Self: 'a;
+
+    fn index(&self) -> Self::Output<'_>;
+}
+// Case: Fount element
+impl<V, N> Index<U0> for Node<V, N> {
+    type Output<'a> = &'a V where Self: 'a;
+
+    fn index(&self) -> Self::Output<'_> {
+        self.value()
+    }
+}
+// Case: There still index remaining but we arrived to last element
+impl<V, U: Unsigned, B: Bit> Index<UInt<U, B>> for Node<V>
+where
+    UInt<U, B>: NonZero,
+{
+    type Output<'a> = Empty where Self: 'a;
+
+    fn index(&self) -> Self::Output<'_> {
+        Empty
+    }
+}
+
+// Case: Generic search recursive search for element when not in last node
+impl<V, U, B, N> Index<UInt<U, B>> for Node<V, N>
+where
+    U: Unsigned,
+    B: Bit,
+    N: NotEmpty + Index<Sub1<UInt<U, B>>>,
+    UInt<U, B>: NonZero + Sub<B1>,
+{
+    type Output<'a> = N::Output<'a> where Self: 'a;
+
+    fn index(&self) -> Self::Output<'_> {
+        self.next.index()
+    }
 }
 
 pub struct DynamicList<F, B: DropValue> {
@@ -174,9 +222,9 @@ impl<F, N: Size + DropValue> DynamicList<F, N> {
 
 impl<F: Append, BV, BN: DropValue> DynamicList<F, Node<BV, BN>> {
     #[inline]
-    pub fn push<V>(self, value: V) -> DynamicList<F::NewType<V>, Node<V, Node<BV, BN>>>
+    pub fn push<V>(self, value: V) -> DynamicList<F::Output<V>, Node<V, Node<BV, BN>>>
     where
-        <F as Append>::NewType<V>: DropValue,
+        <F as Append>::Output<V>: DropValue,
     {
         let value = Box::into_raw(Box::new(value));
 
@@ -278,5 +326,18 @@ mod tests {
         let list = list![Test, Test, Test];
         drop(list);
         assert_eq!(drops(), 4);
+    }
+
+    #[test]
+    fn test_index() {
+        let list_1 = list![1, "two", 3.0, true];
+
+        assert_eq!(&1, Index::<U0>::index(list_1.forward()));
+        assert_eq!(&"two", Index::<U1>::index(list_1.forward()));
+        assert_eq!(&3.0, Index::<U2>::index(list_1.forward()));
+        assert_eq!(&true, Index::<U3>::index(list_1.forward()));
+        assert_eq!(Empty, Index::<U4>::index(list_1.forward()));
+
+        assert_eq!(Empty, Index::<U100>::index(list_1.forward()));
     }
 }
