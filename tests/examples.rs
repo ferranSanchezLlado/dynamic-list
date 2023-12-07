@@ -10,7 +10,7 @@ fn example_one() {
 
 #[test]
 fn example_two() {
-    use dynamic_list::*;
+    use dynamic_list::{list::Node, *};
     // Iterator
     trait Concat {
         fn concat(&self) -> String;
@@ -33,7 +33,7 @@ fn example_two() {
 
 #[test]
 fn example_three() {
-    use dynamic_list::*;
+    use dynamic_list::{list::Node, *};
     // Polymorphic trait
     trait Even {
         fn even(&self) -> usize;
