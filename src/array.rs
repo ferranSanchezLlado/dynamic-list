@@ -1,9 +1,8 @@
-#![allow(unused)]
 use crate::{Empty, NotEmpty};
 use std::marker::PhantomData;
 use std::mem::size_of;
 
-const fn size_of_val<T>(_: &T) -> usize {
+pub const fn size_of_val<T>(_: &T) -> usize {
     size_of::<T>()
 }
 
@@ -120,7 +119,7 @@ impl RefIterator<'static, Empty, Empty, Empty> {
 }
 
 impl<'a, A, CFV, CFN: NotEmpty, CB> RefIterator<'a, Node<CFV, CFN>, CB, A> {
-    const fn next(self) -> RefIterator<'a, CFN, Node<CFV, CB>, A> {
+    pub const fn next(self) -> RefIterator<'a, CFN, Node<CFV, CB>, A> {
         let RefIterator { array, .. } = self;
 
         RefIterator {
@@ -132,7 +131,7 @@ impl<'a, A, CFV, CFN: NotEmpty, CB> RefIterator<'a, Node<CFV, CFN>, CB, A> {
 }
 
 impl<'a, A, CF, CBV, CBN> RefIterator<'a, CF, Node<CBV, CBN>, A> {
-    const fn prev(self) -> RefIterator<'a, Node<CBV, CF>, CBN, A> {
+    pub const fn prev(self) -> RefIterator<'a, Node<CBV, CF>, CBN, A> {
         let RefIterator { array, .. } = self;
 
         RefIterator {
@@ -175,7 +174,8 @@ impl<'a, const N: usize, F, B: RemoveFirst, CFV, CFN, CB: MemorySize>
 #[macro_export]
 macro_rules! array {
     ($($x:expr),+ $(,)?) => {{
-        const N: usize = 0 $(+ size_of_val(&$x))+;
+        // Fix import
+        const N: usize = 0 $(+ $crate::array::size_of_val(&$x))+;
         Array::new::<N>()$(.push($x))+
     }};
 }
@@ -186,33 +186,33 @@ mod tests {
 
     #[test]
     fn works_1() {
-        let list = Array::new::<4>().push(u32::MAX - 1);
+        let list = Array::new::<4>().push(10);
 
-        // assert_eq!(list.forward.value(), &1);
-        // assert_eq!(list.backward.value(), &1);
-        //
-        // assert_eq!(list.forward.next, Empty);
-        // assert_eq!(list.backward.next, Empty);
-        //
+        assert_eq!(list.forward().value(), &10);
+        assert_eq!(list.backward().value(), &10);
+
+        // TODO: Test index
+
         // assert_eq!(list.len(), 1);
     }
 
     #[test]
     fn works_n() {
-        // let list = DynamicList::new().push(1).push("two").push(3.0);
-        //
-        // assert_eq!(list.forward.next.next.value(), &3.0);
-        // assert_eq!(list.backward.next.next.value(), &1);
-        //
+        let list = Array::new::<28>().push(1).push("two").push(3.0);
+
+        assert_eq!(list.forward().next().next().value(), &3.0);
+        assert_eq!(list.backward().prev().prev().value(), &1);
+
+        // TODO: Test index
+
         // assert_eq!(list.len(), 3);
     }
 
     #[test]
     fn test_macro() {
-        let list_1 = array![1_i32, "two", 3.0, true];
-        //let list_2 = list!().push(1).push("two").push(3.0).push(true);
+        let list = array![1, "two", 3.0, true];
 
-        let test = list_1.forward();
+        let test = list.forward();
         assert_eq!(0, test.index());
         assert_eq!(&1, test.value());
     }

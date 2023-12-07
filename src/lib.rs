@@ -1,8 +1,10 @@
-pub use self::traits::{Index, NotEmpty, Size};
 use std::mem::forget;
 
 mod array;
 mod traits;
+
+pub use array::{size_of_val, Array};
+pub use traits::{Index, NotEmpty, Size};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Empty;
