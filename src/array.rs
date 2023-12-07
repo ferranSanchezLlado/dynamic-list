@@ -8,7 +8,7 @@ const fn size_of_val<T>(_: &T) -> usize {
 }
 
 // ZST
-pub struct ArrayNode<V, N = Empty> {
+pub struct Node<V, N = Empty> {
     value: PhantomData<V>,
     next: PhantomData<N>,
 }
@@ -17,17 +17,17 @@ pub trait ArrayAppend {
     type Output<T>;
 }
 impl ArrayAppend for Empty {
-    type Output<T> = ArrayNode<T>;
+    type Output<T> = Node<T>;
 }
-impl<V, N: ArrayAppend> ArrayAppend for ArrayNode<V, N> {
-    type Output<T> = ArrayNode<V, N::Output<T>>;
+impl<V, N: ArrayAppend> ArrayAppend for Node<V, N> {
+    type Output<T> = Node<V, N::Output<T>>;
 }
 
 pub trait MemorySize {
     const SIZE: usize = 0;
 }
 impl MemorySize for Empty {}
-impl<V, N: MemorySize> MemorySize for ArrayNode<V, N> {
+impl<V, N: MemorySize> MemorySize for Node<V, N> {
     const SIZE: usize = size_of::<V>() + N::SIZE;
 }
 
@@ -39,13 +39,13 @@ impl RemoveFirst for Empty {
     type Element = Empty;
     type Rest = Empty;
 }
-impl<V, N> RemoveFirst for ArrayNode<V, N> {
-    type Element = ArrayNode<V>;
+impl<V, N> RemoveFirst for Node<V, N> {
+    type Element = Node<V>;
     type Rest = N;
 }
 
-impl<V> NotEmpty for ArrayNode<V> {}
-impl<V, N: NotEmpty> NotEmpty for ArrayNode<V, N> {}
+impl<V> NotEmpty for Node<V> {}
+impl<V, N: NotEmpty> NotEmpty for Node<V, N> {}
 
 #[repr(transparent)]
 pub struct Array<const N: usize, F, B> {
@@ -65,7 +65,7 @@ impl Array<0, Empty, Empty> {
 }
 
 impl<const N: usize, F: ArrayAppend, B: MemorySize + RemoveFirst> Array<N, F, B> {
-    pub fn push<V>(mut self, value: V) -> Array<N, F::Output<V>, ArrayNode<V, B>> {
+    pub fn push<V>(mut self, value: V) -> Array<N, F::Output<V>, Node<V, B>> {
         assert!(
             size_of::<V>() + B::SIZE <= N,
             "The element doesn't fit in the array"
@@ -82,25 +82,25 @@ impl<const N: usize, F: ArrayAppend, B: MemorySize + RemoveFirst> Array<N, F, B>
         }
     }
 
-    pub const fn forward(&self) -> RefIterator<'_, N, F, B, F, Empty> {
+    pub const fn forward(&self) -> RefIterator<'_, F, Empty, Self> {
         RefIterator::new_forward(self)
     }
 
-    pub const fn backward(&self) -> RefIterator<'_, N, F, B, B::Element, B::Rest> {
+    pub const fn backward(&self) -> RefIterator<'_, B::Element, B::Rest, Self> {
         RefIterator::new_backward(self)
     }
 }
 
-pub struct RefIterator<'a, const N: usize, F, B, CF, CB> {
-    array: &'a Array<N, F, B>,
+pub struct RefIterator<'a, CF, CB, A> {
+    array: &'a A,
     current_foreward: PhantomData<CF>,
     current_backward: PhantomData<CB>,
 }
 
-impl RefIterator<'static, 0, Empty, Empty, Empty, Empty> {
+impl RefIterator<'static, Empty, Empty, Empty> {
     const fn new_forward<const N: usize, F, B>(
         array: &Array<N, F, B>,
-    ) -> RefIterator<'_, N, F, B, F, Empty> {
+    ) -> RefIterator<'_, F, Empty, Array<N, F, B>> {
         RefIterator {
             array,
             current_foreward: PhantomData,
@@ -110,7 +110,7 @@ impl RefIterator<'static, 0, Empty, Empty, Empty, Empty> {
 
     const fn new_backward<const N: usize, F, B: RemoveFirst>(
         array: &Array<N, F, B>,
-    ) -> RefIterator<'_, N, F, B, B::Element, B::Rest> {
+    ) -> RefIterator<'_, B::Element, B::Rest, Array<N, F, B>> {
         RefIterator {
             array,
             current_foreward: PhantomData,
@@ -119,10 +119,8 @@ impl RefIterator<'static, 0, Empty, Empty, Empty, Empty> {
     }
 }
 
-impl<'a, const N: usize, F, B, CFV, CFN: NotEmpty, CB: MemorySize>
-    RefIterator<'a, N, F, B, ArrayNode<CFV, CFN>, CB>
-{
-    const fn next(self) -> RefIterator<'a, N, F, B, CFN, ArrayNode<CFV, CB>> {
+impl<'a, A, CFV, CFN: NotEmpty, CB> RefIterator<'a, Node<CFV, CFN>, CB, A> {
+    const fn next(self) -> RefIterator<'a, CFN, Node<CFV, CB>, A> {
         let RefIterator { array, .. } = self;
 
         RefIterator {
@@ -131,7 +129,23 @@ impl<'a, const N: usize, F, B, CFV, CFN: NotEmpty, CB: MemorySize>
             current_backward: PhantomData,
         }
     }
+}
 
+impl<'a, A, CF, CBV, CBN> RefIterator<'a, CF, Node<CBV, CBN>, A> {
+    const fn prev(self) -> RefIterator<'a, Node<CBV, CF>, CBN, A> {
+        let RefIterator { array, .. } = self;
+
+        RefIterator {
+            array,
+            current_foreward: PhantomData,
+            current_backward: PhantomData,
+        }
+    }
+}
+
+impl<'a, const N: usize, F, B: RemoveFirst, CFV, CFN, CB: MemorySize>
+    RefIterator<'a, Node<CFV, CFN>, CB, Array<N, F, B>>
+{
     pub const fn index(&self) -> usize {
         CB::SIZE
     }
@@ -148,17 +162,13 @@ impl<'a, const N: usize, F, B, CFV, CFN: NotEmpty, CB: MemorySize>
                 .unwrap_unchecked()
         }
     }
-}
 
-impl<'a, const N: usize, F, B, CF, CBV, CBN> RefIterator<'a, N, F, B, CF, ArrayNode<CBV, CBN>> {
-    const fn prev(self) -> RefIterator<'a, N, F, B, ArrayNode<CBV, CF>, CBN> {
-        let RefIterator { array, .. } = self;
+    pub const fn forward(self) -> RefIterator<'a, F, Empty, Array<N, F, B>> {
+        RefIterator::new_forward(self.array)
+    }
 
-        RefIterator {
-            array,
-            current_foreward: PhantomData,
-            current_backward: PhantomData,
-        }
+    pub const fn backward(self) -> RefIterator<'a, B::Element, B::Rest, Array<N, F, B>> {
+        RefIterator::new_backward(self.array)
     }
 }
 
