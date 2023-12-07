@@ -2,7 +2,7 @@ use crate::Empty;
 
 pub trait NotEmpty {}
 
-pub trait Size {
+pub trait Length {
     const SIZE: usize = 0;
 
     fn len(&self) -> usize {
@@ -13,4 +13,12 @@ pub trait Size {
         Self::SIZE == 0
     }
 }
-impl Size for Empty {}
+impl Length for Empty {}
+
+pub trait Index<I> {
+    type Output<'a>
+    where
+        Self: 'a;
+
+    fn index(&self) -> Self::Output<'_>;
+}

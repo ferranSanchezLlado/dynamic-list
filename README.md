@@ -1,6 +1,10 @@
 # Dynamic List 
 
-A versatile implementation of a dynamic bidirectional linked list in Rust, capable of storing any type. This fully-typed list eliminates the need for extra costs, such as dynamic dispatching, making it efficient and flexible for a wide range of use cases.
+A powerful and efficient implementation of dynamic lists with versatile data structures. It is designed to store any type without incurring extra costs, making it an ideal choice for a wide range of applications. One of the main advantages is the you would avoid the extra cost of dynamic dispatch.
+
+Currently, two implementations are provided:
+- *Double-linked list*: A unidirectional linked list capable of efficient iteration in both directions.
+- *Array*: A fixed-size array where all elements are stored consecutively in the stack.
 
 ## Installation 🚀
 
@@ -8,7 +12,7 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-dynamic-list = "0.2.0"
+dynamic-list = "0.3.0"
 ```
 
 Or if you want to use the latest version from the master branch:
@@ -28,16 +32,21 @@ Example 1: Get a specific element
 use dynamic_list::*;
 use typenum::*;
 
-let list = list![1u8, "hello", true, "world"];
-assert_eq!(Index::<U1>::index(list_1.forward()), &"hello");
-assert_eq!(Index::<U3>::index(list_1.forward()), &"world");
+// Chain access:
+let array = array![1u8, "hello", true, "world"];
+assert_eq!(array.forward().next().value(), &"hello");
+assert_eq!(array.backward().value(), &"world");
 
+// Index access:
+let list = list![1u8, "hello", true, "world"];
+assert_eq!(Index::<U1>::index(list.forward()), &"hello");
+assert_eq!(Index::<U3>::index(list.forward()), &"world");
 ```
 
 Example 2: We want to concatenate a list of items into a single string:
 
 ```rust
-use dynamic_list::*;
+use dynamic_list::{list::Node, *};
 
 // Iterator trait
 trait Concat {
@@ -62,7 +71,7 @@ assert_eq!(list.backward().concat(), "-3_hello1");
 Example 3: We want to count how many even numbers are on the list:
 
 ```rust
-use dynamic_list::*;
+use dynamic_list::{list::Node, *};
 
 // Polymorphic trait
 trait Even {
@@ -97,8 +106,8 @@ assert_eq!(list.forward().evens(), 3);
 
 While Dynamic List provides a powerful and flexible solution, it's essential to be aware of the following limitations:
 
-- **Trait Implementation Requirement:** To leverage the full functionality of the list, it's necessary for the values in the list to implement the required traits. Attempting to call trait methods on types that don't implement them will result in compilation errors that are hard to understand. However, with the future introduction of trait specialization in Rust, this limitation may be mitigated, allowing for more versatile trait implementations. For example, it would be possible to define a default value all types excluding the ones you are interested.
-- **Heap Allocation:** Currently, elements in the list are allocated on the heap. Although this allows the possibility of avoiding the need to clone values in the list. If heap allocation is a concern, an alternative implementation allowing for single-directional allocation could be considered.
+- **Trait Implementation Requirement:** To leverage the full functionality of the list, it's necessary for the values in the list to implement the required traits. Attempting to call trait methods on types that don't implement them will result in compilation errors that might be challenging to decipher. However, with the anticipated introduction of trait specialization in Rust, this limitation may be mitigated, allowing for more versatile trait implementations. For instance, the ability to define a default value for all types except the ones specifically of interest could become possible. It's worth noting that trait implementation in arrays is currently more complex to achieve.
+- **Heap Allocation:** Currently, elements in the list are allocated on the heap. While this approach enables avoiding the need to clone values in the list, it introduces potential concerns related to heap allocation. If heap allocation is a critical consideration for your use case, you may want to explore alternative implementations that allow for single-directional allocation, potentially reducing the impact on memory management. It's important to note that this limitation doesn't apply to the array-based implementation, which stores elements consecutively in a byte array  (which can be stored in the stack).
 
 ## License 📄
 

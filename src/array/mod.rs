@@ -1,4 +1,4 @@
-use crate::{Empty, NotEmpty};
+use crate::{Empty, Length, NotEmpty};
 use std::marker::PhantomData;
 use std::mem::size_of;
 use traits::*;
@@ -32,7 +32,7 @@ impl Array<0, Empty, Empty> {
     }
 }
 
-impl<const N: usize, F: ArrayAppend, B: MemorySize + RemoveFirst> Array<N, F, B> {
+impl<const N: usize, F: ArrayAppend + Length, B: MemorySize + RemoveFirst> Array<N, F, B> {
     pub fn push<V>(mut self, value: V) -> Array<N, F::Output<V>, Node<V, B>> {
         assert!(
             size_of::<V>() + B::SIZE <= N,
@@ -56,6 +56,14 @@ impl<const N: usize, F: ArrayAppend, B: MemorySize + RemoveFirst> Array<N, F, B>
 
     pub const fn backward(&self) -> RefIterator<'_, B::Element, B::Rest, Self> {
         RefIterator::new_backward(self)
+    }
+
+    pub const fn len(&self) -> usize {
+        F::SIZE
+    }
+
+    pub const fn is_empty(&self) -> bool {
+        F::SIZE == 0
     }
 }
 
@@ -110,8 +118,7 @@ impl<'a, A, CF, CBV, CBN> RefIterator<'a, CF, Node<CBV, CBN>, A> {
         }
     }
 }
-
-impl<'a, const N: usize, F, B: RemoveFirst, CFV, CFN, CB: MemorySize>
+impl<'a, const N: usize, F, B, CFV, CFN, CB: MemorySize>
     RefIterator<'a, Node<CFV, CFN>, CB, Array<N, F, B>>
 {
     pub const fn index(&self) -> usize {
@@ -130,7 +137,11 @@ impl<'a, const N: usize, F, B: RemoveFirst, CFV, CFN, CB: MemorySize>
                 .unwrap_unchecked()
         }
     }
+}
 
+impl<'a, const N: usize, F, B: RemoveFirst, CFV, CFN, CB: MemorySize>
+    RefIterator<'a, Node<CFV, CFN>, CB, Array<N, F, B>>
+{
     pub const fn forward(self) -> RefIterator<'a, F, Empty, Array<N, F, B>> {
         RefIterator::new_forward(self.array)
     }
@@ -143,7 +154,6 @@ impl<'a, const N: usize, F, B: RemoveFirst, CFV, CFN, CB: MemorySize>
 #[macro_export]
 macro_rules! array {
     ($($x:expr),+ $(,)?) => {{
-        // Fix import
         const N: usize = 0 $(+ $crate::array::size_of_val(&$x))+;
         Array::new::<N>()$(.push($x))+
     }};
@@ -160,9 +170,9 @@ mod tests {
         assert_eq!(list.forward().value(), &10);
         assert_eq!(list.backward().value(), &10);
 
-        // TODO: Test index
+        assert_eq!(list.forward().index(), 0);
 
-        // assert_eq!(list.len(), 1);
+        assert_eq!(list.len(), 1);
     }
 
     #[test]
@@ -172,17 +182,18 @@ mod tests {
         assert_eq!(list.forward().next().next().value(), &3.0);
         assert_eq!(list.backward().prev().prev().value(), &1);
 
-        // TODO: Test index
+        assert_eq!(list.forward().next().index(), 4);
+        assert_eq!(list.backward().index(), 4 + 4 * 4); // 1 32bit + 4 chars
 
-        // assert_eq!(list.len(), 3);
+        assert_eq!(list.len(), 3);
     }
 
     #[test]
     fn test_macro() {
         let list = array![1, "two", 3.0, true];
 
-        let test = list.forward();
-        assert_eq!(0, test.index());
-        assert_eq!(&1, test.value());
+        let test = list.forward().next().next().prev().next().next();
+        assert_eq!(28, test.index());
+        assert_eq!(&true, test.value());
     }
 }

@@ -1,4 +1,4 @@
-use crate::{Empty, Size};
+use crate::{Empty, Length};
 use std::mem::forget;
 use traits::*;
 
@@ -78,7 +78,7 @@ impl Default for DynamicList<Empty, Empty> {
 }
 
 // Size and Drop Value are always implemented
-impl<F, N: Size + DropValue> DynamicList<F, N> {
+impl<F, N: Length + DropValue> DynamicList<F, N> {
     #[inline]
     pub const fn forward(&self) -> &F {
         &self.forward
@@ -111,11 +111,11 @@ impl<F, N: Size + DropValue> DynamicList<F, N> {
 }
 
 // Generic push:
-impl<F: Append, BV, BN: DropValue> DynamicList<F, Node<BV, BN>> {
+impl<F: ListAppend, BV, BN: DropValue> DynamicList<F, Node<BV, BN>> {
     #[inline]
     pub fn push<V>(self, value: V) -> DynamicList<F::Output<V>, Node<V, Node<BV, BN>>>
     where
-        <F as Append>::Output<V>: DropValue,
+        <F as ListAppend>::Output<V>: DropValue,
     {
         let value = Box::into_raw(Box::new(value));
 

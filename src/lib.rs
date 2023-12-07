@@ -2,7 +2,7 @@ pub mod array;
 pub mod list;
 mod traits;
 
-pub use array::{size_of_val, Array};
+pub use array::Array;
 pub use list::DynamicList;
 
 pub use array::traits::*;

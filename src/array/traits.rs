@@ -1,7 +1,6 @@
-use std::mem::size_of;
-
 use crate::array::Node;
-use crate::{Empty, NotEmpty};
+use crate::{Empty, Length, NotEmpty};
+use std::mem::size_of;
 
 pub trait ArrayAppend {
     type Output<T>;
@@ -36,3 +35,7 @@ impl<V, N> RemoveFirst for Node<V, N> {
 
 impl<V> NotEmpty for Node<V> {}
 impl<V, N: NotEmpty> NotEmpty for Node<V, N> {}
+
+impl<V, N: Length> Length for Node<V, N> {
+    const SIZE: usize = 1 + N::SIZE;
+}

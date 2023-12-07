@@ -1,5 +1,4 @@
-use crate::Size;
-use crate::{list::Node, Empty, NotEmpty};
+use crate::{list::Node, Empty, Index, Length, NotEmpty};
 use std::ops::Sub;
 use typenum::{Bit, NonZero, Sub1, UInt, Unsigned, B1, U0};
 
@@ -21,12 +20,12 @@ unsafe impl<V, N: DropValue> DropValue for Node<V, N> {
     }
 }
 
-pub trait Append {
+pub trait ListAppend {
     type Output<T>: DropValue;
 
     fn append<T>(self, value: *const T) -> Self::Output<T>;
 }
-impl<V> Append for Node<V> {
+impl<V> ListAppend for Node<V> {
     type Output<T> = Node<V, Node<T>>;
 
     #[inline]
@@ -37,7 +36,7 @@ impl<V> Append for Node<V> {
         }
     }
 }
-impl<V, N: Append + DropValue> Append for Node<V, N> {
+impl<V, N: ListAppend + DropValue> ListAppend for Node<V, N> {
     type Output<T> = Node<V, N::Output<T>>;
 
     #[inline]
@@ -84,16 +83,8 @@ where
     }
 }
 
-impl<V, N: Size> Size for Node<V, N> {
+impl<V, N: Length> Length for Node<V, N> {
     const SIZE: usize = 1 + N::SIZE;
-}
-
-pub trait Index<I> {
-    type Output<'a>
-    where
-        Self: 'a;
-
-    fn index(&self) -> Self::Output<'_>;
 }
 
 impl<V> NotEmpty for Node<V> {}

@@ -3,6 +3,12 @@ fn example_one() {
     use dynamic_list::*;
     use typenum::*;
 
+    // Chain access:
+    let array = array![1u8, "hello", true, "world"];
+    assert_eq!(array.forward().next().value(), &"hello");
+    assert_eq!(array.backward().value(), &"world");
+
+    // Index access:
     let list = list![1u8, "hello", true, "world"];
     assert_eq!(Index::<U1>::index(list.forward()), &"hello");
     assert_eq!(Index::<U3>::index(list.forward()), &"world");
