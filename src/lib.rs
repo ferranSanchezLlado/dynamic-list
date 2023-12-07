@@ -1,6 +1,7 @@
 pub use self::traits::{Index, NotEmpty, Size};
 use std::mem::forget;
 
+mod array;
 mod traits;
 
 #[derive(Debug, PartialEq, Eq)]
